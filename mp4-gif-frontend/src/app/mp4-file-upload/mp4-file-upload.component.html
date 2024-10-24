@@ -1,0 +1,16 @@
+<div class="file-upload">
+    <input type="file" (change)="onFileSelected($event)" />
+    <button (click)="onUpload()" [disabled]="!selectedFile">Convert to GIF</button>
+  
+    <div *ngIf="progress > 0">Progress: {{ progress }}%</div>
+
+    <div *ngIf="validationError" style="color: red;">
+        {{ validationError }}
+      </div>
+  
+    <div *ngIf="gifUrl">
+      <h3>GIF Result:</h3>
+      <img [src]="gifUrl" alt="Converted GIF" />
+      <a [href]="gifUrl" download="converted.gif">Download GIF</a>
+    </div>
+  </div>

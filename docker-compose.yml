@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+  mp4giffrontend:
+    image: mp4giffrontend
+    build:
+      context: mp4-gif-frontend
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000
+
+  mp4gifconverter:
+    image: mp4gifconverter
+    build:
+      context: mp4gifconverter
+      dockerfile: ./Dockerfile
+    environment:
+      - NODE_ENV: production
+    ports:
+      - 80:80
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
