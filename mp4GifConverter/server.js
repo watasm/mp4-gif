@@ -1,51 +1,34 @@
 const express = require('express');
 const multer = require('multer');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const ffmpeg = require('fluent-ffmpeg');
+const { Kafka } = require('kafkajs');
 const path = require('path');
-ffmpeg.setFfmpegPath(ffmpegPath);
-const cors = require('cors');
-const fs = require('fs');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' }); 
 
-app.use(express.static('public'));
+const upload = multer({ dest: 'uploads/' });
 
-app.use(cors({
-    origin: 'http://localhost:4200'
-}));
-
-app.post('/convert', upload.single('video'), (req, res) => {
-    const filePath = req.file.path;
-    const outputGifPath = `uploads/${req.file.filename}.gif`;
-
-    ffmpeg(filePath)
-        .output(outputGifPath)
-        .outputOptions([
-            '-vf scale=400:-1',
-            '-r 5'
-        ])
-        .on('end', () => {
-            fs.unlink(filePath, (err) => {
-                if (err) console.error(err);
-            });
-
-            res.download(outputGifPath, (err) => {
-                if (err) console.error(err);
-                fs.unlink(outputGifPath, (err) => {
-                    if (err) console.error(err);
-                });
-            });
-        })
-        .on('error', (err) => {
-            console.error('Error: ' + err.message);
-            res.status(500).send('Conversion failed.');
-        })
-        .run();
+const kafka = new Kafka({
+  clientId: 'mp4GifConverter-api',
+  brokers: [process.env.KAFKA_BROKER]  
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const producer = kafka.producer();
+producer.connect();
+
+app.post('/convert', upload.single('file'), async (req, res) => {
+  const filePath = req.file.path;
+
+  try {
+    await producer.send({
+      topic: 'mp4-conversion-requests',
+      messages: [{ value: JSON.stringify({ filePath }) }]
+    });
+
+    res.status(202).json({ message: 'File uploaded and conversion request sent to Kafka', filePath });
+  } catch (error) {
+    console.error('Error publishing to Kafka:', error);
+    res.status(500).json({ error: 'Failed to process upload' });
+  }
 });
+
+app.listen(3000, () => console.log('Server running on port 3000'));
